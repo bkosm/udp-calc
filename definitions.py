@@ -29,8 +29,11 @@ class Header:
         return "o->"+self.operation+"#s->"+self.status+"#i->" + \
             self.id+"#a->"+self.a+"#b->"+self.b+"#t->"+self.timestamp+"#"
 
+    def to_send(self) -> bytes:
+        return bytes(self.to_string(), encoding='utf8')
 
-class Operations:
+
+class Operation:
     RANDOM = 'a'
     MODULO = 'A'
     POWER = 'b'
@@ -41,17 +44,19 @@ class Operations:
 
 class Status:
     # Możliwe wartości pola status
-    RECIEVED = 'recieved'
     SENDING = 'sending'
-    LAST = 'last'
+    CONNECTING = 'connecting'
+    RECIEVED = 'recieved'
     OUTPUT = 'output'
-    CONNECTED = 'connected'
-    CONNECTING = 'connect'
+    LAST = 'last'
+    OK = 'ok'
 
 
 def create_timestamp() -> str:
     time = str(dt.utcnow().replace(microsecond=0))
     return re.sub('[- :]', '', time)
+
+
 
 L_HOST: str = '127.0.0.1'
 L_PORT: int = 65432

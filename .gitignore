@@ -1,0 +1,5 @@
+
+*.pdf
+/.pytest_cache/
+/__pycache__/
+*.db

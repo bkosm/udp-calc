@@ -8,6 +8,7 @@
 
 from datetime import datetime as dt
 import re
+import queue
 
 # Skrajne akceptowane wartości zmiennych
 MAX_NR: int = 9223372036854775807
@@ -41,6 +42,10 @@ class Operation:
     SORT_A = 'c'
     SORT_D = 'C'
 
+    @staticmethod
+    def to_list() -> list:
+        return [Operation.RANDOM, Operation.MODULO, Operation.SQUARE, Operation.MULTIPLY, Operation.SORT_A, Operation.SORT_D]
+
 
 class Status:
     # Możliwe wartości pola status
@@ -51,11 +56,41 @@ class Status:
     LAST = 'last'
     OK = 'ok'
 
+    @staticmethod
+    def to_list() -> list:
+        return [Status.SENDING, Status.CONNECTING, Status.RECIEVED, Status.OUTPUT, Status.LAST, Status.OK]
+
+
+class Session:
+    def __init__(self, session_id):
+        self.session_id = session_id
+        self.numbers_to_sort = []
+        self.request_queue = queue.Queue()
+
 
 def create_timestamp() -> str:
     time = str(dt.utcnow().replace(microsecond=0))
     return re.sub('[- :]', '', time)
 
+
+def parse_message(message: str) -> Header:
+    # example=> b'o->A#s->ok#i->xdxdxdxdx#a->null#b->null#t->20191010134342#'
+    groups = re.match(HEADER_REGEX, message)
+
+    if groups:
+        operation = ''
+        status = ''
+
+        for op in Operation.to_list():
+            if op == groups.group(1):
+                operation = op
+        for st in Status.to_list():
+            if st == groups.group(2):
+                status = st
+
+        return Header(operation, status, groups.group(3), groups.group(6), groups.group(4), groups.group(5))
+
+    return None
 
 
 L_HOST: str = '127.0.0.1'

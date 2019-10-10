@@ -6,7 +6,7 @@ class Client:
     def __init__(self):
         self.socket = skt.socket(skt.AF_INET, skt.SOCK_DGRAM)
 
-    def send(self):
+    def run(self):
         self.socket.sendto(self.std_client_response(Operation.MODULO, 'xdxdxdxdx'), (L_HOST, L_PORT))
 
         data, addr = self.socket.recvfrom(1024)
@@ -19,4 +19,4 @@ class Client:
         return Header(operation, Status.OK, session_id, create_timestamp()).to_send()
 
 a = Client()
-a.send()
+a.run()

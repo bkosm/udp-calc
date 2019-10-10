@@ -36,7 +36,7 @@ class Header:
 class Operation:
     RANDOM = 'a'
     MODULO = 'A'
-    POWER = 'b'
+    SQUARE = 'b'
     MULTIPLY = 'B'
     SORT_A = 'c'
     SORT_D = 'C'

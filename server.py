@@ -1,19 +1,24 @@
 import socket as skt
 import threading as thrdg
 from definitions import *
-import sys
+from collections import deque
 import queue
 import time
 
 
 class Server:
     def __init__(self):
+        # Inicjalizacja nieblokującego gniazda na UDP
         self.socket = skt.socket(skt.AF_INET, skt.SOCK_DGRAM)
         self.socket.bind((L_HOST, L_PORT))
         self.socket.setblocking(0)
-        self.sending_queue = queue.Queue()
-        self.sessions = []
 
+        # Inicjalizacja bezpiecznych kontenerów
+        self.sending_queue = queue.Queue()
+        self.sessions = deque()
+
+    # Funkcja dla osobnego wątku do odbierania i przetwarzania
+    # wiadomości na sesje i żądania
     def recieve_func(self):
         this_thread = thrdg.currentThread()
         while getattr(this_thread, 'run', True):
@@ -28,6 +33,8 @@ class Server:
                 message = repr(data)
                 self.parse_request(message, addr)
 
+    # Funkcja dla osobnego wątku do wysyłania
+    # przetworzonych żądań
     def sending_func(self):
         this_thread = thrdg.currentThread()
         while getattr(this_thread, 'run', True):
@@ -35,12 +42,14 @@ class Server:
                 msg, addr = self.sending_queue.get()
                 self.socket.sendto(msg, addr)
 
+    # Przetwarza wiadomość i rozdziela żądania na sesje
     def parse_request(self, message, addr):
         request = parse_message(message)
 
         for s in self.sessions:
             if s.session_id == request.id:
                 s.request_queue.put(request)
+                break
         else:
             new_session = Session(request.id)
             new_session.request_queue.put(request)
@@ -57,6 +66,7 @@ class Server:
         self.kill_threads()
 
     def stop(self):
+        self.socket.shutdown(skt.SHUT_RDWR)
         self.socket.close()
 
         print("Remaining requests:")
@@ -72,6 +82,7 @@ class Server:
     def std_server_response(self, operation: str, session_id: str) -> str:
         return Header(operation, Status.RECIEVED, session_id, create_timestamp()).to_send()
 
+    # Rozpoczynanie i kończenie wątków
     def init_threads(self):
         self.process_requests = thrdg.Thread(target=self.recieve_func)
         self.send_messages = thrdg.Thread(target=self.sending_func)

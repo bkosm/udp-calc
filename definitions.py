@@ -7,8 +7,8 @@
 '''
 
 from datetime import datetime as dt
-import re
 import queue
+import re
 
 # Skrajne akceptowane wartości zmiennych
 MAX_NR: int = 9223372036854775807
@@ -73,6 +73,7 @@ def create_timestamp() -> str:
     return re.sub('[- :]', '', time)
 
 
+# Function that turns the protocol message into an organized struct
 def parse_message(message: str) -> Header:
     # example=> b'o->A#s->ok#i->xdxdxdxdx#a->null#b->null#t->20191010134342#'
     groups = re.match(HEADER_REGEX, message)

@@ -10,3 +10,6 @@ def test_operations():
     assert Calculations.multiply('2', '3') == '6'
     assert parse_message("b'o->A#s->ok#i->xdxdxdxdx#a->null#b->null#t->20191010134342#'").to_send(
     ) == b'o->A#s->ok#i->xdxdxdxdx#a->null#b->null#t->20191010134342##'
+
+
+# Miejsce do testowania rozwiązań

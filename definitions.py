@@ -7,7 +7,7 @@
 '''
 
 from datetime import datetime as dt
-import queue
+from queue import Queue
 import re
 
 # Skrajne akceptowane wartości zmiennych
@@ -16,6 +16,8 @@ MIN_NR: int = -MAX_NR - 1
 
 HEADER_REGEX: str = r"b'o->(.*)#s->(.*)#i->(.*)#a->(.*)#b->(.*)#t->(.*)'"
 
+L_HOST: str = '127.0.0.1'
+L_PORT: int = 65432
 
 class Header:
     def __init__(self, o='', s='', i='', t='', a='null', b='null'):
@@ -65,7 +67,7 @@ class Session:
     def __init__(self, session_id):
         self.session_id = session_id
         self.numbers_to_sort = []
-        self.request_queue = queue.Queue()
+        self.request_queue = Queue()
 
 
 def create_timestamp() -> str:
@@ -94,5 +96,3 @@ def parse_message(message: str) -> Header:
     return None
 
 
-L_HOST: str = '127.0.0.1'
-L_PORT: int = 65432

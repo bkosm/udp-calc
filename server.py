@@ -2,7 +2,7 @@ import socket as skt
 import threading as thrdg
 from definitions import *
 from collections import deque
-import queue
+from queue import Queue
 import time
 
 
@@ -14,7 +14,7 @@ class Server:
         self.socket.setblocking(0)
 
         # Inicjalizacja bezpiecznych kontenerów
-        self.sending_queue = queue.Queue()
+        self.sending_queue = Queue()
         self.sessions = deque()
 
     # Funkcja dla osobnego wątku do odbierania i przetwarzania

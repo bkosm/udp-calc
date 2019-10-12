@@ -22,11 +22,15 @@ class Calculations:
         return str(int(a) * int(b))
 
     @staticmethod
-    def sort(numbers: list) -> str:
+    def sort(numbers: list, reverse: bool = False) -> str:
+        if len(numbers) == 1:
+            return numbers
 
-        pass
+        to_sort = [int(i) for i in numbers]
 
-    @staticmethod
-    def sort_reverse(numbers: list) -> str:
+        if not reverse:
+            to_sort.sort()
+        else:
+            to_sort.sort(reverse=True)
 
-        pass
+        return [str(i) for i in to_sort]

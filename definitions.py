@@ -36,7 +36,6 @@ class Operation:
 
 
 class Status:
-    # Możliwe wartości pola status
     SENDING = 'send'
     CONNECTING = 'conn'
     RECIEVED = 'recvd'
@@ -76,10 +75,10 @@ class Header:
     def create_reply(operation: str, status: str, session_id: str, num_a=Status.NONE, num_b=Status.NONE) -> bytes:
         return Header(operation, status, session_id, Header.create_timestamp(), num_a, num_b).to_send()
 
-    # Function that turns the protocol message into an organized struct
+    # Funkcja przetwarzająca łańcuch tekstowy na strukturę nagłówka
     @staticmethod
     def parse_message(message: str):
-        # example=> b'o->A#s->ok#i->xdxdxdxdx#a->null#b->null#t->20191010134342#'
+        # example=> b'o->A#s->ok#i->11111#a->null#b->null#t->191010134342#'
         groups = re.match(HEADER_REGEX, message)
 
         if groups:
@@ -92,7 +91,6 @@ class Header:
             for st in Status.to_list():
                 if st == groups.group(2):
                     status = st
-
             return Header(operation, status, groups.group(3), groups.group(6), groups.group(4), groups.group(5))
 
         else:
@@ -101,19 +99,25 @@ class Header:
 
 class Session:
     def __init__(self, session_id, address):
+        # Sesja zawiera ID klienta i jego adres
         self.session_id = session_id
         self.receiver_addr = address
 
+        # Inicjalizacja tablicy liczb do sortowania oraz kolejki żądań
         self.numbers_to_sort = []
         self.request_queue = Queue()
 
     def request_to_response(self):
+        # Jeśli są żadania, bierzemy pierwsze w kolejności i przetwarzamy je
         if not self.request_queue.empty():
             request: Header = self.request_queue.get()
 
+            # Potwierdzamy utworzenie sesji
             if request.operation == Operation.CONNECTING:
                 request.status = Status.OK
 
+            # Operacja modulo może być zakończona błędem, dlatego
+            # należy go obsłużyć
             elif request.operation == Operation.MODULO:
                 try:
                     request.a = Calculations.modulo(request.a, request.b)
@@ -138,11 +142,35 @@ class Session:
                 request.b = Status.NONE
                 request.status = Status.OUTPUT
 
-            elif request.operation == Operation.SORT_A:
-                pass
+            # Przyjmujemy naraz operacje sortowania w obie strony i obie flagi sortowania
+            elif request.operation == Operation.SORT_A or request.operation == Operation.SORT_D:
+                if request.status == Status.SENDING or request.status == Status.LAST:
 
-            elif request.operation == Operation.SORT_D:
-                pass
+                    self.numbers_to_sort.append(request.a)
 
+                    sorted_nums = []
+                    if request.operation == Operation.SORT_A:
+                        sorted_nums = Calculations.sort(self.numbers_to_sort)
+                    else:
+                        sorted_nums = Calculations.sort(
+                            self.numbers_to_sort, reverse=True)
+
+                    if request.status == Status.LAST:
+                        self.numbers_to_sort = []
+
+                    request.status = Status.OUTPUT
+                    request.b = Status.NONE
+                    request.timestamp = Header.create_timestamp()
+
+                    # Z posortowanych liczb tworzymy listę odpowiedzi
+                    message_list = []
+                    for num in sorted_nums:
+                        request.a = num
+                        message_list.append(
+                            (request.to_send(), self.receiver_addr))
+
+                    return message_list
+
+            # Wynik działań poza sortowaniem zwracamy tym samym sposobem
             request.timestamp = Header.create_timestamp()
-            return (request.to_send(), self.receiver_addr)
+            return [(request.to_send(), self.receiver_addr)]

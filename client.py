@@ -21,14 +21,55 @@ class Client:
         print('Connected with:', addr[0], 'on port:', addr[1])
         print("msg =", repr(data)[1:])
 
+        sess_id = Header.parse_message(repr(data)).id
+
+        print('New list')
         self.socket.sendto(Header.create_reply(
-            Operation.MODULO, Status.SENDING, Status.NONE, '10', '0'), (self.HOST, self.PORT))
+            Operation.SORT_A, Status.SENDING, sess_id, '3', '0'), (self.HOST, self.PORT))
 
-        while True:
-            data, addr = self.socket.recvfrom(1024)
+        data, addr = self.socket.recvfrom(1024)
+        print('Connected with:', addr[0], 'on port:', addr[1])
+        print("msg =", repr(data)[1:])
+        data, addr = self.socket.recvfrom(1024)
+        print('Connected with:', addr[0], 'on port:', addr[1])
+        print("msg =", repr(data)[1:])
 
-            print('Connected with:', addr[0], 'on port:', addr[1])
-            print("msg =", repr(data)[1:])
+        self.socket.sendto(Header.create_reply(
+            Operation.SORT_D, Status.LAST, sess_id, '20', '0'), (self.HOST, self.PORT))
+
+        data, addr = self.socket.recvfrom(1024)
+        print('Connected with:', addr[0], 'on port:', addr[1])
+        print("msg =", repr(data)[1:])
+        data, addr = self.socket.recvfrom(1024)
+        print('Connected with:', addr[0], 'on port:', addr[1])
+        print("msg =", repr(data)[1:])
+        data, addr = self.socket.recvfrom(1024)
+        print('Connected with:', addr[0], 'on port:', addr[1])
+        print("msg =", repr(data)[1:])
+
+        print('New list')
+        self.socket.sendto(Header.create_reply(
+            Operation.SORT_A, Status.SENDING, sess_id, '10', '0'), (self.HOST, self.PORT))
+
+        data, addr = self.socket.recvfrom(1024)
+        print('Connected with:', addr[0], 'on port:', addr[1])
+        print("msg =", repr(data)[1:])
+        data, addr = self.socket.recvfrom(1024)
+        print('Connected with:', addr[0], 'on port:', addr[1])
+        print("msg =", repr(data)[1:])
+
+        self.socket.sendto(Header.create_reply(
+            Operation.SORT_A, Status.LAST, sess_id, '-1', '0'), (self.HOST, self.PORT))
+
+        data, addr = self.socket.recvfrom(1024)
+        print('Connected with:', addr[0], 'on port:', addr[1])
+        print("msg =", repr(data)[1:])
+        data, addr = self.socket.recvfrom(1024)
+        print('Connected with:', addr[0], 'on port:', addr[1])
+        print("msg =", repr(data)[1:])
+        data, addr = self.socket.recvfrom(1024)
+        print('Connected with:', addr[0], 'on port:', addr[1])
+        print("msg =", repr(data)[1:])
 
     def connection_request(self):
         return Header.create_reply(Operation.CONNECTING, Status.CONNECTING, Status.NONE)

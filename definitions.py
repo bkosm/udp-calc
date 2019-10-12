@@ -7,13 +7,11 @@
 '''
 
 from datetime import datetime as dt
+from copy import deepcopy as dc
 from calculations import *
 from queue import Queue
 import re
 
-# Skrajne akceptowane wartości zmiennych
-MAX_NR: int = 9223372036854775807
-MIN_NR: int = -MAX_NR - 1
 
 HEADER_REGEX: str = r"b'o->(.*)#s->(.*)#i->(.*)#a->(.*)#b->(.*)#t->(.*)'"
 
@@ -91,6 +89,7 @@ class Header:
             for st in Status.to_list():
                 if st == groups.group(2):
                     status = st
+
             return Header(operation, status, groups.group(3), groups.group(6), groups.group(4), groups.group(5))
 
         else:
@@ -112,64 +111,70 @@ class Session:
         if not self.request_queue.empty():
             request: Header = self.request_queue.get()
 
-            # Potwierdzamy utworzenie sesji
-            if request.operation == Operation.CONNECTING:
-                request.status = Status.OK
+            # Obsługujemy wymagane błędy przepełnienia
+            try:
+                # Potwierdzamy utworzenie sesji
+                if request.operation == Operation.CONNECTING:
+                    request.status = Status.OK
 
-            # Operacja modulo może być zakończona błędem, dlatego
-            # należy go obsłużyć
-            elif request.operation == Operation.MODULO:
-                try:
+                elif request.operation == Operation.MODULO:
                     request.a = Calculations.modulo(request.a, request.b)
                     request.b = Status.NONE
                     request.status = Status.OUTPUT
-                except ZeroDivisionError:
-                    request.status = Status.ERROR
 
-            elif request.operation == Operation.MULTIPLY:
-                request.a = Calculations.multiply(request.a, request.b)
-                request.b = Status.NONE
-                request.status = Status.OUTPUT
-
-            elif request.operation == Operation.RANDOM:
-                request.a = Calculations.randomint_between(
-                    request.a, request.b)
-                request.b = Status.NONE
-                request.status = Status.OUTPUT
-
-            elif request.operation == Operation.SQUARE:
-                request.a = Calculations.square(request.a, request.b)
-                request.b = Status.NONE
-                request.status = Status.OUTPUT
-
-            # Przyjmujemy naraz operacje sortowania w obie strony i obie flagi sortowania
-            elif request.operation == Operation.SORT_A or request.operation == Operation.SORT_D:
-                if request.status == Status.SENDING or request.status == Status.LAST:
-
-                    self.numbers_to_sort.append(request.a)
-
-                    sorted_nums = []
-                    if request.operation == Operation.SORT_A:
-                        sorted_nums = Calculations.sort(self.numbers_to_sort)
-                    else:
-                        sorted_nums = Calculations.sort(
-                            self.numbers_to_sort, reverse=True)
-
-                    if request.status == Status.LAST:
-                        self.numbers_to_sort = []
-
-                    request.status = Status.OUTPUT
+                elif request.operation == Operation.MULTIPLY:
+                    request.a = Calculations.multiply(request.a, request.b)
                     request.b = Status.NONE
-                    request.timestamp = Header.create_timestamp()
+                    request.status = Status.OUTPUT
 
-                    # Z posortowanych liczb tworzymy listę odpowiedzi
-                    message_list = []
-                    for num in sorted_nums:
-                        request.a = num
-                        message_list.append(
-                            (request.to_send(), self.receiver_addr))
+                elif request.operation == Operation.RANDOM:
+                    request.a = Calculations.randomint_between(
+                        request.a, request.b)
+                    request.b = Status.NONE
+                    request.status = Status.OUTPUT
 
-                    return message_list
+                elif request.operation == Operation.SQUARE:
+                    request.a = Calculations.square(request.a)
+                    request.b = Status.NONE
+                    request.status = Status.OUTPUT
+
+                # Przyjmujemy naraz operacje sortowania w obie strony i obie flagi sortowania
+                elif request.operation == Operation.SORT_A or request.operation == Operation.SORT_D:
+                    if request.status == Status.SENDING or request.status == Status.LAST:
+
+                        self.numbers_to_sort.append(request.a)
+                        last_sort = False
+
+                        sorted_nums = []
+                        if request.operation == Operation.SORT_A:
+                            sorted_nums = Calculations.sort(
+                                self.numbers_to_sort)
+                        else:
+                            sorted_nums = Calculations.sort(
+                                self.numbers_to_sort, reverse=True)
+
+                        if request.status == Status.LAST:
+                            self.numbers_to_sort = []
+                            last_sort = True
+
+                        request.status = Status.OUTPUT
+                        request.b = Status.NONE
+                        request.timestamp = Header.create_timestamp()
+
+                        # Z posortowanych liczb tworzymy listę odpowiedzi
+                        message_list = []
+                        for num in sorted_nums:
+                            request.a = num
+                            message_list.append(dc(request))
+
+                        if last_sort:
+                            message_list[-1].status = Status.LAST
+
+                        return [(msg.to_send(), self.receiver_addr) for msg in message_list]
+
+            except (ZeroDivisionError, OverflowError):
+                self.numbers_to_sort = []
+                request.status = Status.ERROR
 
             # Wynik działań poza sortowaniem zwracamy tym samym sposobem
             request.timestamp = Header.create_timestamp()

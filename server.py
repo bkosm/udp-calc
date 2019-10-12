@@ -27,10 +27,10 @@ class Server:
             if terminate == 'kill':
                 break
 
-        self.kill_threads()
         self.stop()
 
     def stop(self):
+        self.kill_threads()
         self.socket.close()
 
         print("Remaining requests:")
@@ -40,7 +40,7 @@ class Server:
                 print(i.to_string())
 
     def init_threads(self):
-        self.recieve = thrdg.Thread(target=self.recieve_func)
+        self.recieve = thrdg.Thread(target=self.recieving_func)
         self.operate = thrdg.Thread(target=self.operation_func)
         self.send = thrdg.Thread(target=self.sending_func)
 
@@ -58,7 +58,7 @@ class Server:
         self.send.join()
 
     # Funkcja dla osobnego wątku do przeprowadzania operacji
-    # i kolejkowania ich wyników do wysłania 
+    # i kolejkowania ich wyników do wysłania
 
     def operation_func(self):
         this_thread = thrdg.currentThread()
@@ -92,28 +92,33 @@ class Server:
     # Funkcja dla osobnego wątku do odbierania i przetwarzania
     # wiadomości na sesje i żądania
 
-    def recieve_func(self):
+    def recieving_func(self):
         this_thread = thrdg.currentThread()
 
         while getattr(this_thread, 'run', True):
             # W przypadku braku danych w momencie pobierania
             # wyrzucany jest błąd
-            
             try:
                 data, addr = self.socket.recvfrom(1024)
             except:
                 continue
 
             if data:
-                print('Recieved from:', addr[0], 'through port:', addr[1])
                 self.parse_request(repr(data), addr)
 
     # Przetwarza wiadomość i rozdziela żądania na sesje
 
-    def parse_request(self, message, addr):
+    def parse_request(self, message: str, addr: tuple):
         request = Header.parse_message(message)
 
-        #TODO wyświetlanie i ignorowanie statusu recieved oraz logowanie zdarzeń
+        # Jeśli wiadomość to potwierdzenie odbioru to ją drukujemy
+        if request.status == Status.OK:
+            print("Client of session {} recieved the message ({})".format(
+                request.id, request.operation))
+            return
+        else:
+            print('Recieved from: {}, through port: {}'.format(
+                addr[0], addr[1]))
 
         # Jeśli komunikat jest niezgodny z protokołem nie obsługujemy go
         if not request.operation == Status.ERROR:

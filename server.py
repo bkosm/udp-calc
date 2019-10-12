@@ -98,6 +98,7 @@ class Server:
         while getattr(this_thread, 'run', True):
             # W przypadku braku danych w momencie pobierania
             # wyrzucany jest błąd
+            
             try:
                 data, addr = self.socket.recvfrom(1024)
             except:
@@ -111,6 +112,8 @@ class Server:
 
     def parse_request(self, message, addr):
         request = Header.parse_message(message)
+
+        #TODO wyświetlanie i ignorowanie statusu recieved oraz logowanie zdarzeń
 
         # Jeśli komunikat jest niezgodny z protokołem nie obsługujemy go
         if not request.operation == Status.ERROR:

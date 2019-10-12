@@ -1,5 +1,6 @@
 from random import randint as rd
 
+#TODO wywalanie błędów przy zbyt dużych wynikach
 
 class Calculations:
     @staticmethod

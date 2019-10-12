@@ -16,6 +16,20 @@ class Client:
         print('Connected with:', addr[0], 'on port:', addr[1])
         print("msg =", repr(data)[1:])
 
+        data, addr = self.socket.recvfrom(1024)
+
+        print('Connected with:', addr[0], 'on port:', addr[1])
+        print("msg =", repr(data)[1:])
+
+        self.socket.sendto(Header.create_reply(
+            Operation.MODULO, Status.SENDING, Status.NONE, '10', '0'), (self.HOST, self.PORT))
+
+        while True:
+            data, addr = self.socket.recvfrom(1024)
+
+            print('Connected with:', addr[0], 'on port:', addr[1])
+            print("msg =", repr(data)[1:])
+
     def connection_request(self):
         return Header.create_reply(Operation.CONNECTING, Status.CONNECTING, Status.NONE)
 

@@ -1,7 +1,6 @@
 import socket as skt
 import threading as thrdg
 from definitions import *
-from collections import deque
 from queue import Queue
 from random import randint
 import time
@@ -16,7 +15,7 @@ class Server:
 
         # Inicjalizacja bezpiecznych kontenerów
         self.sending_queue = Queue()
-        self.sessions = deque()
+        self.sessions = []
 
     # Funkcja dla osobnego wątku do odbierania i przetwarzania
     # wiadomości na sesje i żądania
@@ -40,27 +39,39 @@ class Server:
         this_thread = thrdg.currentThread()
         while getattr(this_thread, 'run', True):
             if not self.sending_queue.empty():
-                msg, addr = self.sending_queue.get()
-                self.socket.sendto(msg, addr)
+                try:
+                    msg, addr = self.sending_queue.get()
+                    self.socket.sendto(msg, addr)
+                except:
+                    continue
+
+    # Funkcja dla osobnego wątku do wysyłania
+    # przetworzonych żądań
+    def operation_func(self):
+        this_thread = thrdg.currentThread()
+        while getattr(this_thread, 'run', True):
+            time.sleep(0.1)
+            for s in self.sessions:
+                self.sending_queue.put(s.request_to_response())
 
     # Przetwarza wiadomość i rozdziela żądania na sesje
     def parse_request(self, message, addr):
         request = Header.parse_message(message)
 
-        if request.id == Status.NONE:
-            request.id = str(randint(0, 99999)).rjust(5, "0")
+        if not request.operation == Status.ERROR:
+            if request.id == Status.NONE:
+                request.id = str(randint(0, 99999)).rjust(5, "0")
 
-        for s in self.sessions:
-            if s.session_id == request.id:
-                s.request_queue.put(request)
-                break
-        else:
-            new_session = Session(request.id)
-            new_session.request_queue.put(request)
-            self.sessions.append(new_session)
+            for s in self.sessions:
+                if s.session_id == request.id:
+                    s.request_queue.put(request)
+                    break
+            else:
+                new_session = Session(request.id, addr)
+                new_session.request_queue.put(request)
+                self.sessions.append(new_session)
 
-        self.sending_queue.put((self.std_server_response(
-            request.operation, request.id), addr))
+        self.sending_queue.put((self.std_server_response(request), addr))
 
     def run(self):
         self.init_threads()
@@ -78,25 +89,30 @@ class Server:
             for i in list(s.request_queue.queue):
                 print(i.to_string())
 
-    
+    def std_server_response(self, request: Header) -> bytes:
+        request.status = Status.RECIEVED
+        request.timestamp = Header.create_timestamp()
 
-    def std_server_response(self, operation: str, session_id: str) -> bytes:
-        return Header.create_reply(operation, Status.RECIEVED, session_id)
+        return request.to_send()
 
     # Rozpoczynanie i kończenie wątków
     def init_threads(self):
         self.process_requests = thrdg.Thread(target=self.recieve_func)
+        self.create_responses = thrdg.Thread(target=self.operation_func)
         self.send_messages = thrdg.Thread(target=self.sending_func)
 
         self.process_requests.start()
+        self.create_responses.start()
         self.send_messages.start()
 
     def kill_threads(self):
         self.process_requests.run = False
+        self.create_responses.run = False
         self.send_messages.run = False
 
-        self.send_messages.join()
         self.process_requests.join()
+        self.create_responses.join()
+        self.send_messages.join()
 
 
 a = Server()

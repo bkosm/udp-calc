@@ -7,6 +7,7 @@
 '''
 
 from datetime import datetime as dt
+from calculations import *
 from queue import Queue
 import re
 
@@ -18,6 +19,36 @@ HEADER_REGEX: str = r"b'o->(.*)#s->(.*)#i->(.*)#a->(.*)#b->(.*)#t->(.*)'"
 
 L_HOST: str = '127.0.0.1'
 L_PORT: int = 65432
+
+
+class Operation:
+    RANDOM = 'a'
+    MODULO = 'A'
+    SQUARE = 'b'
+    MULTIPLY = 'B'
+    SORT_A = 'c'
+    SORT_D = 'C'
+    CONNECTING = 'X'
+
+    @staticmethod
+    def to_list() -> list:
+        return [Operation.RANDOM, Operation.MODULO, Operation.SQUARE, Operation.MULTIPLY, Operation.SORT_A, Operation.SORT_D, Operation.CONNECTING]
+
+
+class Status:
+    # Możliwe wartości pola status
+    SENDING = 'send'
+    CONNECTING = 'conn'
+    RECIEVED = 'recvd'
+    OUTPUT = 'output'
+    LAST = 'last'
+    ERROR = 'err'
+    OK = 'ok'
+    NONE = 'null'
+
+    @staticmethod
+    def to_list() -> list:
+        return [Status.SENDING, Status.CONNECTING, Status.RECIEVED, Status.OUTPUT, Status.LAST, Status.ERROR, Status.OK, Status.NONE]
 
 
 class Header:
@@ -42,7 +73,7 @@ class Header:
         return re.sub('[- :]', '', time)
 
     @staticmethod
-    def create_reply(operation: str, status: str, session_id: str, num_a='null', num_b='null') -> bytes:
+    def create_reply(operation: str, status: str, session_id: str, num_a=Status.NONE, num_b=Status.NONE) -> bytes:
         return Header(operation, status, session_id, Header.create_timestamp(), num_a, num_b).to_send()
 
     # Function that turns the protocol message into an organized struct
@@ -64,59 +95,54 @@ class Header:
 
             return Header(operation, status, groups.group(3), groups.group(6), groups.group(4), groups.group(5))
 
-        return None
-
-
-class Operation:
-    RANDOM = 'a'
-    MODULO = 'A'
-    SQUARE = 'b'
-    MULTIPLY = 'B'
-    SORT_A = 'c'
-    SORT_D = 'C'
-    CONNECTING = 'X'
-
-    @staticmethod
-    def to_list() -> list:
-        return [Operation.RANDOM, Operation.MODULO, Operation.SQUARE, Operation.MULTIPLY, Operation.SORT_A, Operation.SORT_D, Operation.CONNECTING]
-
-
-class Status:
-    # Możliwe wartości pola status
-    SENDING = 'send'
-    CONNECTING = 'conn'
-    RECIEVED = 'recvd'
-    OUTPUT = 'output'
-    LAST = 'last'
-    OK = 'ok'
-    NONE = 'null'
-
-    @staticmethod
-    def to_list() -> list:
-        return [Status.SENDING, Status.CONNECTING, Status.RECIEVED, Status.OUTPUT, Status.LAST, Status.OK]
+        else:
+            return Header(Status.ERROR, Status.ERROR, Status.ERROR, Status.ERROR)
 
 
 class Session:
-    def __init__(self, session_id):
+    def __init__(self, session_id, address):
         self.session_id = session_id
+        self.receiver_addr = address
+
         self.numbers_to_sort = []
         self.request_queue = Queue()
 
-    def process_requests(self):
+    def request_to_response(self):
         if not self.request_queue.empty():
-            request = self.request_queue.get()
+            request: Header = self.request_queue.get()
 
             if request.operation == Operation.CONNECTING:
-                pass
+                request.status = Status.OK
+
             elif request.operation == Operation.MODULO:
-                pass
+                try:
+                    request.a = Calculations.modulo(request.a, request.b)
+                    request.b = Status.NONE
+                    request.status = Status.OUTPUT
+                except ZeroDivisionError:
+                    request.status = Status.ERROR
+
             elif request.operation == Operation.MULTIPLY:
-                pass
+                request.a = Calculations.multiply(request.a, request.b)
+                request.b = Status.NONE
+                request.status = Status.OUTPUT
+
             elif request.operation == Operation.RANDOM:
-                pass
+                request.a = Calculations.randomint_between(
+                    request.a, request.b)
+                request.b = Status.NONE
+                request.status = Status.OUTPUT
+
+            elif request.operation == Operation.SQUARE:
+                request.a = Calculations.square(request.a, request.b)
+                request.b = Status.NONE
+                request.status = Status.OUTPUT
+
             elif request.operation == Operation.SORT_A:
                 pass
+
             elif request.operation == Operation.SORT_D:
                 pass
-            elif request.operation == Operation.SQUARE:
-                pass
+
+            request.timestamp = Header.create_timestamp()
+            return (request.to_send(), self.receiver_addr)

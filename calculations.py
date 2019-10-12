@@ -8,7 +8,10 @@ class Calculations:
 
     @staticmethod
     def modulo(a: str, b: str) -> str:
-        return str(int(a) % int(b))
+        if int(b) == 0:
+            raise ZeroDivisionError
+        else:
+            return str(int(a) % int(b))
 
     @staticmethod
     def square(a: str) -> str:

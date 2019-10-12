@@ -3,6 +3,7 @@ import threading as thrdg
 from definitions import *
 from collections import deque
 from queue import Queue
+from random import randint
 import time
 
 
@@ -44,7 +45,10 @@ class Server:
 
     # Przetwarza wiadomość i rozdziela żądania na sesje
     def parse_request(self, message, addr):
-        request = parse_message(message)
+        request = Header.parse_message(message)
+
+        if request.id == Status.NONE:
+            request.id = str(randint(0, 99999)).rjust(5, "0")
 
         for s in self.sessions:
             if s.session_id == request.id:
@@ -66,7 +70,6 @@ class Server:
         self.kill_threads()
 
     def stop(self):
-        self.socket.shutdown(skt.SHUT_RDWR)
         self.socket.close()
 
         print("Remaining requests:")
@@ -75,12 +78,10 @@ class Server:
             for i in list(s.request_queue.queue):
                 print(i.to_string())
 
-    def create_reply(self) -> str:
+    
 
-        pass
-
-    def std_server_response(self, operation: str, session_id: str) -> str:
-        return Header(operation, Status.RECIEVED, session_id, create_timestamp()).to_send()
+    def std_server_response(self, operation: str, session_id: str) -> bytes:
+        return Header.create_reply(operation, Status.RECIEVED, session_id)
 
     # Rozpoczynanie i kończenie wątków
     def init_threads(self):

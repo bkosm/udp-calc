@@ -9,20 +9,18 @@ class Client:
         self.PORT = L_PORT
 
     def run(self):
-        self.socket.sendto(self.std_client_response(
-            Operation.MODULO, self.generate_session_id()), (self.HOST, self.PORT))
+        self.socket.sendto(self.connection_request(), (self.HOST, self.PORT))
 
         data, addr = self.socket.recvfrom(1024)
 
         print('Connected with:', addr[0], 'on port:', addr[1])
         print("msg =", repr(data)[1:])
 
-    def std_client_response(self, operation: str, session_id: str) -> str:
-        return Header(operation, Status.OK, session_id, create_timestamp()).to_send()
+    def connection_request(self):
+        return Header.create_reply(Operation.CONNECTING, Status.CONNECTING, Status.NONE)
 
-    def generate_session_id(self) -> str:
-        session_id = self.HOST+str(self.PORT)+create_timestamp()[6:]
-        return re.sub('[.]', '', session_id)
+    def std_client_response(self, operation: str, session_id: str) -> str:
+        return Header.create_reply(operation, Status.OK, session_id)
 
 
 a = Client()

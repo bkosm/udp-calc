@@ -26,11 +26,12 @@ class Operation:
     MULTIPLY = 'B'
     SORT_A = 'c'
     SORT_D = 'C'
-    CONNECTING = 'X'
+    CONNECTING = 'x'
+    DISCONNECTING = 'X'
 
     @staticmethod
     def to_list() -> list:
-        return [Operation.RANDOM, Operation.MODULO, Operation.SQUARE, Operation.MULTIPLY, Operation.SORT_A, Operation.SORT_D, Operation.CONNECTING]
+        return [Operation.RANDOM, Operation.MODULO, Operation.SQUARE, Operation.MULTIPLY, Operation.SORT_A, Operation.SORT_D, Operation.CONNECTING, Operation.DISCONNECTING]
 
 
 class Status:
@@ -40,12 +41,13 @@ class Status:
     OUTPUT = 'output'
     LAST = 'last'
     ERROR = 'err'
+    BUSY = 'busy'
     OK = 'ok'
     NONE = 'null'
 
     @staticmethod
     def to_list() -> list:
-        return [Status.SENDING, Status.CONNECTING, Status.RECIEVED, Status.OUTPUT, Status.LAST, Status.ERROR, Status.OK, Status.NONE]
+        return [Status.SENDING, Status.CONNECTING, Status.RECIEVED, Status.OUTPUT, Status.LAST, Status.ERROR, Status.BUSY, Status.OK, Status.NONE]
 
 
 class Header:

@@ -15,7 +15,7 @@ class Server:
 
         # Inicjalizacja bezpiecznych kontenerów
         self.sending_queue = Queue()
-        self.sessions = []
+        self.session = None
 
     def run(self):
         self.init_threads()
@@ -34,9 +34,9 @@ class Server:
         self.socket.close()
 
         print("Remaining requests:")
-        for s in self.sessions:
-            print('In session', s.session_id, ':')
-            for i in list(s.request_queue.queue):
+        if self.session:
+            print('In session', self.session.session_id, ':')
+            for i in list(self.session.request_queue.queue):
                 print(i.to_string())
 
     def init_threads(self):
@@ -68,8 +68,8 @@ class Server:
 
             # Wśród wszystkich sesji wykonuje metodę przetwarzania żądania
             # Następnie dodaje wyniki tej metody do kolejki wysyłania
-            for s in self.sessions:
-                messages = s.request_to_response()
+            if self.session:
+                messages = self.session.request_to_response()
                 if messages:
                     for m in messages:
                         self.sending_queue.put(m)
@@ -111,32 +111,42 @@ class Server:
     def parse_request(self, message: str, addr: tuple):
         request = Header.parse_message(message)
 
-        # Jeśli wiadomość to potwierdzenie odbioru to ją drukujemy
-        if request.status == Status.OK:
-            print("Client of session {} recieved the message ({})".format(
-                request.id, request.operation))
-            return
-        else:
-            print('Recieved from: {}, through port: {}'.format(
-                addr[0], addr[1]))
-
         # Jeśli komunikat jest niezgodny z protokołem nie obsługujemy go
         if not request.operation == Status.ERROR:
+            if request.status == Status.OK:
+                print("Client of session {} recieved the message ({})".format(
+                    request.id, request.operation))
+                return
+            # Jeśli klient kończy sesję obsługujemy resztę jego żądań i usuwamy sesje    
+            elif request.operation == Operation.DISCONNECTING and self.session.session_id == request.id:
+                while not self.session.request_queue.empty():
+                    time.sleep(0.1)
+                print('Client of session {} is disconnected'.format(request.id))
+                self.session = None
+                self.sending_queue.put((self.std_server_response(request), addr))
+                return
 
-            # Nowym klientom nadawane jest ID sesji
-            if request.id == Status.NONE:
-                request.id = str(randint(0, 99999)).rjust(5, "0")
-
-            # Sprawdzane jest czy klient ma już swoją sesje i jeśli tak dodajemy
-            # do niej żądania, jeśli nie to tworzona jest nowa sesja
-            for s in self.sessions:
-                if s.session_id == request.id:
-                    s.request_queue.put(request)
-                    break
             else:
-                new_session = Session(request.id, addr)
-                new_session.request_queue.put(request)
-                self.sessions.append(new_session)
+                print('Recieved from: {}, through port: {}'.format(
+                    addr[0], addr[1]))
+
+                # Nowym klientom nadawane jest ID sesji
+                if not self.session and request.operation == Operation.CONNECTING and request.id == Status.NONE:
+                    request.id = str(randint(0, 99999)).rjust(5, "0")
+
+                # Sprawdzane jest czy klient ma już swoją sesje i jeśli tak dodajemy
+                # do niej żądania, jeśli nie to tworzona jest nowa sesja
+                if self.session and self.session.session_id == request.id:
+                    self.session.request_queue.put(request)
+                elif not self.session and not request.id == Status.NONE:
+                    new_session = Session(request.id, addr)
+                    new_session.request_queue.put(request)
+                    self.session = new_session
+                else:
+                    # Klientom próbującym dołączyć podczas trwania innej sesji odsyłamy błąd
+                    print('Another client (id={}) tried to connect, refusing'.format(request.id))
+                    self.sending_queue.put((Header.create_reply(request.operation, Status.BUSY, Status.ERROR), addr))
+                    return
 
         # Zwracamy potwierdzenie odbioru komunikatu
         self.sending_queue.put((self.std_server_response(request), addr))

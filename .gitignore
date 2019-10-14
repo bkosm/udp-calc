@@ -2,4 +2,7 @@
 *.pdf
 /.pytest_cache/
 /__pycache__/
+/build/
+/dist/
+*.spec
 *.db

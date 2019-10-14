@@ -169,14 +169,14 @@ class Session:
                             request.a = num
                             message_list.append(dc(request))
 
-                        if last_sort:
-                            message_list[-1].status = Status.LAST
+                        message_list[-1].status = Status.LAST
 
                         return [(msg.to_send(), self.receiver_addr) for msg in message_list]
 
             except (ZeroDivisionError, OverflowError):
                 self.numbers_to_sort = []
                 request.status = Status.ERROR
+                request.a = Status.ERROR
 
             # Wynik działań poza sortowaniem zwracamy tym samym sposobem
             request.timestamp = Header.create_timestamp()

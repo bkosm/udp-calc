@@ -25,7 +25,7 @@ L_PORT: int = 65432
 class Operation:
     RANDOM = 'a'
     MODULO = 'A'
-    SQUARE = 'b'
+    ADD = 'b'
     MULTIPLY = 'B'
     SORT_A = 'c'
     SORT_D = 'C'
@@ -34,7 +34,7 @@ class Operation:
 
     @staticmethod
     def to_list() -> list:
-        return [Operation.RANDOM, Operation.MODULO, Operation.SQUARE, Operation.MULTIPLY, Operation.SORT_A, Operation.SORT_D, Operation.CONNECTING, Operation.DISCONNECTING]
+        return [Operation.RANDOM, Operation.MODULO, Operation.ADD, Operation.MULTIPLY, Operation.SORT_A, Operation.SORT_D, Operation.CONNECTING, Operation.DISCONNECTING]
 
 
 class Status:
@@ -138,8 +138,8 @@ class Session:
                     request.b = Status.NONE
                     request.status = Status.OUTPUT
 
-                elif request.operation == Operation.SQUARE:
-                    request.a = Calculations.square(request.a)
+                elif request.operation == Operation.ADD:
+                    request.a = Calculations.add(request.a, request.b)
                     request.b = Status.NONE
                     request.status = Status.OUTPUT
 

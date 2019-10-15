@@ -27,8 +27,8 @@ class Calculations:
         return str(result)
 
     @staticmethod
-    def square(a: str) -> str:
-        result = int(a)**2
+    def add(a: str, b: str) -> str:
+        result = int(a) + int(b)
 
         if result < MIN_NR or result > MAX_NR:
             raise OverflowError

@@ -104,10 +104,10 @@ class Client:
 
     def print_result(self, msg: Header) -> None:
         if self.requests:
-            if msg.operation == Operation.SQUARE:
+            if msg.operation == Operation.ADD:
                 for req in self.requests:
                     if msg.operation == req.operation:
-                        print("{}^2 = {}".format(req.a, msg.a))
+                        print("{} + {} = {}".format(req.a, req.b, msg.a))
                         self.requests.remove(req)
 
             if msg.operation == Operation.MULTIPLY:
@@ -132,30 +132,30 @@ class Client:
     # Menu operacji
     def process_arguments(self) -> None:
         # Operacje wywoływane jako argumenty programu realizujemy od razu
-        if self.arguments.square:
-            req = Header(Operation.SQUARE, Status.NONE, self.SESSION_ID,
-                         Header.create_timestamp(), self.arguments.square)
+        if self.arguments.add:
+            req = Header(Operation.ADD, Status.NONE, self.SESSION_ID,
+                         Header.create_timestamp(), str(self.arguments.add[0]), str(self.arguments.add[1]))
 
             self.requests.append(req)
             self.messages_to_send.put(req.to_send())
 
         if self.arguments.multiply:
             req = Header(Operation.MULTIPLY, Status.NONE, self.SESSION_ID,
-                         Header.create_timestamp(), self.arguments.multiply[0], self.arguments.multiply[1])
+                         Header.create_timestamp(), str(self.arguments.multiply[0]), str(self.arguments.multiply[1]))
 
             self.requests.append(req)
             self.messages_to_send.put(req.to_send())
 
         if self.arguments.random:
             req = Header(Operation.RANDOM, Status.NONE, self.SESSION_ID,
-                         Header.create_timestamp(), self.arguments.random[0], self.arguments.random[1])
+                         Header.create_timestamp(), str(self.arguments.random[0]), str(self.arguments.random[1]))
 
             self.requests.append(req)
             self.messages_to_send.put(req.to_send())
 
         if self.arguments.modulo:
             req = Header(Operation.MODULO, Status.NONE, self.SESSION_ID,
-                         Header.create_timestamp(), self.arguments.modulo[0], self.arguments.modulo[1])
+                         Header.create_timestamp(), str(self.arguments.modulo[0]), str(self.arguments.modulo[1]))
 
             self.requests.append(req)
             self.messages_to_send.put(req.to_send())
@@ -222,14 +222,14 @@ class Client:
         parser.add_argument(
             "port", type=int, help="Port through which the data will be sent.")
 
-        parser.add_argument("-s", "--square", required=False,
-                            help="Calculate square of a number", metavar="N")
+        parser.add_argument("-a", "--add", required=False,
+                            help="Calculate the sum of two numbers", metavar="N", nargs=2, type=int)
         parser.add_argument("-m", "--multiply", required=False,
-                            help="Multiply two numbers", metavar="N", nargs=2)
+                            help="Multiply two numbers", metavar="N", nargs=2, type=int)
         parser.add_argument("-r", "--random", required=False,
-                            help="Get a random number from range (inclusive)", metavar="N", nargs=2)
+                            help="Get a random number from range (inclusive)", metavar="N", nargs=2, type=int)
         parser.add_argument("-M", "--modulo", required=False,
-                            help="Get modulo operation result", metavar="N", nargs=2)
+                            help="Get modulo operation result", metavar="N", nargs=2, type=int)
 
         group = parser.add_mutually_exclusive_group()
         group.add_argument("-x", "--sortA", required=False,

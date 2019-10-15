@@ -1,10 +1,9 @@
-import threading as thrdg
-from definitions import *
+from definitions import Operation, Status, Header
 from queue import Queue
+import threading as thrdg
 import socket as skt
 import argparse
 import time
-from collections import deque
 
 
 class Client:
@@ -16,35 +15,29 @@ class Client:
         self.parse_arguments()
 
         self.SERVER_ADDR = (self.arguments.ip_address, self.arguments.port)
-        self.SESSION_ID = int()
+        self.SESSION_ID = Status.NONE
 
         # Inicjalizacja bezpiecznych kontenerów
         self.messages_recieved = Queue()
         self.messages_to_send = Queue()
         self.requests = []
 
-    def run(self):
+    def run(self) -> None:
         if self.init_connection():
             self.init_threads()
+
             self.process_arguments()
 
-            while True:
-                cond = input("Type in 'quit' to exit app\n")
-                if cond == 'quit':
-                    break
-
-        self.stop()
-
-    def stop(self):
-        self.disconnect()
-        self.kill_threads()
+            self.disconnect()
+            self.kill_threads()
         self.socket.close()
 
     def init_connection(self) -> bool:
         print('Waiting for server connection')
         while True:
             # Wysyłamy prośbę o utworzenie sesji
-            self.socket.sendto(self.connection_request(), self.SERVER_ADDR)
+            self.socket.sendto(Header.create_reply(
+                Operation.CONNECTING, Status.NONE, self.SESSION_ID), self.SERVER_ADDR)
             time.sleep(0.5)
 
             # Czekamy na potwierdzenie serwera lub informację o zajętości
@@ -64,15 +57,81 @@ class Client:
                 except:
                     break
 
-    def disconnect(self):
-        self.messages_to_send.put(Header.create_reply(
-            Operation.DISCONNECTING, Status.NONE, self.SESSION_ID))
+    def init_threads(self) -> None:
+        self.send = thrdg.Thread(target=self.sending_func)
+        self.recieve = thrdg.Thread(target=self.recieving_func)
 
-        print('Quitting session, please wait')
-        time.sleep(3)
+        self.send.start()
+        self.recieve.start()
+
+    def sending_func(self) -> None:
+        this_thread = thrdg.currentThread()
+
+        while getattr(this_thread, 'run', True):
+            if not self.messages_to_send.empty():
+                message = self.messages_to_send.get()
+                self.socket.sendto(message, self.SERVER_ADDR)
+
+    def recieving_func(self) -> None:
+        this_thread = thrdg.currentThread()
+
+        while getattr(this_thread, 'run', True):
+            try:
+                data, addr = self.socket.recvfrom(1024)
+            except:
+                continue
+
+            if data:
+                msg = Header.parse_message(repr(data))
+                # Jeśli wiadomość to potwierdzenie drukujemy
+                # informację i nie dodajemy jej do kolejki
+                if msg.status == Status.RECIEVED:
+                    print('Server recieved request (op={})'.format(msg.operation))
+
+                else:
+                    if msg.operation == Operation.SORT_A or msg.operation == Operation.SORT_D:
+                        print(msg.a)
+
+                    else:
+                        self.print_result(msg)
+
+                    # Potwierdzamy odbiór komunikatu
+                    self.messages_to_send.put(
+                        self.std_client_response(msg.operation))
+
+    def std_client_response(self, operation: str) -> bytes:
+        return Header.create_reply(operation, Status.OK, self.SESSION_ID)
+
+    def print_result(self, msg: Header) -> None:
+        if self.requests:
+            if msg.operation == Operation.SQUARE:
+                for req in self.requests:
+                    if msg.operation == req.operation:
+                        print("{}^2 = {}".format(req.a, msg.a))
+                        self.requests.remove(req)
+
+            if msg.operation == Operation.MULTIPLY:
+                for req in self.requests:
+                    if msg.operation == req.operation:
+                        print("{} * {} = {}".format(req.a, req.b, msg.a))
+                        self.requests.remove(req)
+
+            if msg.operation == Operation.RANDOM:
+                for req in self.requests:
+                    if msg.operation == req.operation:
+                        print("random between <{}; {}> = {}".format(
+                            req.a, req.b, msg.a))
+                        self.requests.remove(req)
+
+            if msg.operation == Operation.MODULO:
+                for req in self.requests:
+                    if msg.operation == req.operation:
+                        print("{} % {} = {}".format(req.a, req.b, msg.a))
+                        self.requests.remove(req)
 
     # Menu operacji
-    def process_arguments(self):
+    def process_arguments(self) -> None:
+        # Operacje wywoływane jako argumenty programu realizujemy od razu
         if self.arguments.square:
             req = Header(Operation.SQUARE, Status.NONE, self.SESSION_ID,
                          Header.create_timestamp(), self.arguments.square)
@@ -101,144 +160,60 @@ class Client:
             self.requests.append(req)
             self.messages_to_send.put(req.to_send())
 
+        # Sortowanie przetwarzamy w pętli wewnątrz programu
         if self.arguments.sortA:
-            while True:
-                num = input(
-                    "Enter next number to sort, if it's the last one, add '-' after the number (ex. '3-'):\n")
-
-                if not num:
-                    continue
-
-                if num[-1] == '-':
-                    req = Header(Operation.SORT_A, Status.LAST,
-                                 self.SESSION_ID, Header.create_timestamp(), num[:1])
-
-                    self.requests.append(req)
-                    self.messages_to_send.put(req.to_send())
-
-                    break
-                else:
-                    req = Header(Operation.SORT_A, Status.SENDING,
-                                 self.SESSION_ID, Header.create_timestamp(), num[:1])
-
-                    self.requests.append(req)
-                    self.messages_to_send.put(req.to_send())
-
+            self.collect_sortA_request()
         elif self.arguments.sortD:
-            while True:
-                num = input(
-                    "Enter next number to sort, if it's the last one, add '-' after the number (ex. '3-'):\n")
+            self.collect_sortD_request()
 
-                if not num:
-                    continue
+    def collect_sortA_request(self) -> None:
+        print("Enter next number to sort, if it's the last one, add '-' after the number (ex. '3-'):")
+        while True:
+            num = input()
 
-                if num[-1] == '-':
-                    self.messages_to_send.put(Header.create_reply(
-                        Operation.SORT_D, Status.LAST, self.SESSION_ID, num[:1]))
-                    break
-                else:
-                    self.messages_to_send.put(Header.create_reply(
-                        Operation.SORT_D, Status.SENDING, self.SESSION_ID, num))
-
-    def sending_func(self):
-        this_thread = thrdg.currentThread()
-
-        while getattr(this_thread, 'run', True):
-            if not self.messages_to_send.empty():
-                message = self.messages_to_send.get()
-                self.socket.sendto(message, self.SERVER_ADDR)
-
-    def display_func(self):
-        this_thread = thrdg.currentThread()
-
-        while getattr(this_thread, 'run', True):
-            if not self.messages_recieved.empty() and self.requests:
-                msg: Header = self.messages_recieved.get()
-
-                if msg.operation == Operation.SQUARE:
-                    for req in self.requests:
-                        if msg.operation == req.operation:
-                            print("{}^2 = {}".format(req.a, msg.a))
-                            self.requests.remove(req)
-
-                if msg.operation == Operation.MULTIPLY:
-                    for req in self.requests:
-                        if msg.operation == req.operation:
-                            print("{} * {} = {}".format(req.a, req.b, msg.a))
-                            self.requests.remove(req)
-
-                if msg.operation == Operation.RANDOM:
-                    for req in self.requests:
-                        if msg.operation == req.operation:
-                            print("random between <{}; {}> = {}".format(
-                                req.a, req.b, msg.a))
-                            self.requests.remove(req)
-
-                if msg.operation == Operation.MODULO:
-                    for req in self.requests:
-                        if msg.operation == req.operation:
-                            print("{} % {} = {}".format(req.a, req.b, msg.a))
-                            self.requests.remove(req)
-
-                #TODO print sorting
-
-                if msg.operation == Operation.SORT_A:
-                    for req in self.requests:
-                        if msg.operation == req.operation:
-                            print(msg.a)
-
-                            self.requests.remove(req)
-
-    def recieving_func(self):
-        this_thread = thrdg.currentThread()
-
-        while getattr(this_thread, 'run', True):
-            try:
-                data, addr = self.socket.recvfrom(1024)
-            except:
+            if not num:
                 continue
 
-            if data:
-                msg = Header.parse_message(repr(data))
-                # Jeśli wiadomość to potwierdzenie drukujemy
-                # informację i nie dodajemy jej do kolejki
-                if msg.status == Status.RECIEVED:
-                    print('Server recieved request (op={})'.format(msg.operation))
+            if num[-1] == '-':
+                self.messages_to_send.put(Header.create_reply(
+                    Operation.SORT_A, Status.LAST, self.SESSION_ID, num[:-1]))
+                return
+            else:
+                self.messages_to_send.put(Header.create_reply(
+                    Operation.SORT_A, Status.SENDING, self.SESSION_ID, num))
 
-                else:
-                    print('Recieved message from server:',
-                          addr[0], 'through port:', addr[1])
-                    self.messages_recieved.put(msg)
+    def collect_sortD_request(self) -> None:
+        print("Enter next number to sort, if it's the last one, add '-' after the number (ex. '3-'):")
+        while True:
+            num = input()
 
-                    # Potwierdzamy odbiór komunikatu
-                    self.messages_to_send.put(
-                        self.std_client_response(msg.operation))
+            if not num:
+                continue
 
-    def init_threads(self):
-        self.recieve = thrdg.Thread(target=self.recieving_func)
-        self.send = thrdg.Thread(target=self.sending_func)
-        self.display = thrdg.Thread(target=self.display_func)
+            if num[-1] == '-':
+                self.messages_to_send.put(Header.create_reply(
+                    Operation.SORT_D, Status.LAST, self.SESSION_ID, num[:-1]))
+                return
+            else:
+                self.messages_to_send.put(Header.create_reply(
+                    Operation.SORT_D, Status.SENDING, self.SESSION_ID, num))
 
-        self.recieve.start()
-        self.send.start()
-        self.display.start()
+    # Wysyłamy żądanie rozłączenia i oczekujemy na otrzymanie pozostałych wiadomości
+    def disconnect(self) -> None:
+        self.messages_to_send.put(Header.create_reply(
+            Operation.DISCONNECTING, Status.NONE, self.SESSION_ID))
 
-    def kill_threads(self):
+        print('Quitting session, please wait')
+        time.sleep(3)
+
+    def kill_threads(self) -> None:
         self.recieve.run = False
         self.send.run = False
-        self.display.run = False
 
         self.recieve.join()
         self.send.join()
-        self.display.join()
 
-    def connection_request(self) -> bytes:
-        return Header.create_reply(Operation.CONNECTING, Status.NONE, Status.NONE)
-
-    def std_client_response(self, operation: str) -> bytes:
-        return Header.create_reply(operation, Status.OK, self.SESSION_ID)
-
-    def parse_arguments(self):
+    def parse_arguments(self) -> None:
         parser = argparse.ArgumentParser(
             description="Connect to a remote host and perform calculations.")
 
@@ -265,5 +240,6 @@ class Client:
         self.arguments = parser.parse_args()
 
 
-a = Client()
-a.run()
+if __name__ == '__main__':
+    app = Client()
+    app.run()

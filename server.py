@@ -1,24 +1,27 @@
-import socket as skt
+from definitions import Operation, Status, Header, Session
 import threading as thrdg
-from definitions import *
-from queue import Queue
 from random import randint
+from queue import Queue
+import socket as skt
+import argparse
 import time
 
 
 class Server:
     def __init__(self):
+        self.parse_arguments()
+
         # Inicjalizacja nieblokującego gniazda na UDP
         self.socket = skt.socket(skt.AF_INET, skt.SOCK_DGRAM)
-        self.socket.bind((L_HOST, L_PORT))
+        self.socket.bind((self.arguments.ip_address, self.arguments.port))
         self.socket.setblocking(0)
 
         # Inicjalizacja bezpiecznych kontenerów
         self.sending_queue = Queue()
-        self.session = None
         self.counter = [0, 0]
+        self.session = None
 
-    def run(self):
+    def run(self) -> None:
         self.init_threads()
 
         # Pętla wątku głównego
@@ -30,14 +33,14 @@ class Server:
 
         self.stop()
 
-    def stop(self):
+    def stop(self) -> None:
         self.kill_threads()
         self.socket.close()
 
         print("Served {} client(s) with a total of {} operations".format(
             self.counter[1], self.counter[0]))
 
-    def init_threads(self):
+    def init_threads(self) -> None:
         self.recieve = thrdg.Thread(target=self.recieving_func)
         self.operate = thrdg.Thread(target=self.operation_func)
         self.send = thrdg.Thread(target=self.sending_func)
@@ -46,7 +49,7 @@ class Server:
         self.operate.start()
         self.send.start()
 
-    def kill_threads(self):
+    def kill_threads(self) -> None:
         self.recieve.run = False
         self.operate.run = False
         self.send.run = False
@@ -58,7 +61,7 @@ class Server:
     # Funkcja dla osobnego wątku do przeprowadzania operacji
     # i kolejkowania ich wyników do wysłania
 
-    def operation_func(self):
+    def operation_func(self) -> None:
         this_thread = thrdg.currentThread()
 
         while getattr(this_thread, 'run', True):
@@ -76,7 +79,7 @@ class Server:
     # Funkcja dla osobnego wątku do wysyłania
     # przetworzonych wyników
 
-    def sending_func(self):
+    def sending_func(self) -> None:
         this_thread = thrdg.currentThread()
 
         while getattr(this_thread, 'run', True):
@@ -91,7 +94,7 @@ class Server:
     # Funkcja dla osobnego wątku do odbierania i przetwarzania
     # wiadomości na sesje i żądania
 
-    def recieving_func(self):
+    def recieving_func(self) -> None:
         this_thread = thrdg.currentThread()
 
         while getattr(this_thread, 'run', True):
@@ -107,7 +110,7 @@ class Server:
 
     # Przetwarza wiadomość i rozdziela żądania na sesje
 
-    def parse_request(self, message: str, addr: tuple):
+    def parse_request(self, message: str, addr: tuple) -> None:
         request = Header.parse_message(message)
 
         # Jeśli komunikat jest niezgodny z protokołem nie obsługujemy go
@@ -130,8 +133,8 @@ class Server:
                 return
 
             else:
-                print('Recieved from: {}, through port: {}'.format(
-                    addr[0], addr[1]))
+                print('Recieved from: {}, through port: {} (id={})'.format(
+                    addr[0], addr[1], request.id))
 
                 # Potwierdzamy odbiór poprawnego komunikatu
                 self.sending_queue.put(
@@ -164,6 +167,18 @@ class Server:
     def std_server_response(self, request: Header) -> bytes:
         return Header.create_reply(request.operation, Status.RECIEVED, request.id, request.a, request.b)
 
+    def parse_arguments(self) -> None:
+        parser = argparse.ArgumentParser(
+            description="Server of remote calculation application.")
 
-a = Server()
-a.run()
+        parser.add_argument(
+            "ip_address", help="IP Address to bind to.")
+        parser.add_argument(
+            "port", type=int, help="Port to listen to.")
+
+        self.arguments = parser.parse_args()
+
+
+if __name__ == '__main__':
+    app = Server()
+    app.run()

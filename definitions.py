@@ -1,14 +1,17 @@
 '''
+
     Nagłówek protokołu:
-    o->(x)#s->(x)#i->(x)#a->(x)#b->(x)#t->(x)
+    o->(x)#s->(x)#i->(x)#a->(x)#b->(x)#t->(x)#
+
     o => operacja           s => status
     i => id sesji           a => liczba 1
     b => liczba 2           t => znacznik czasu
+
 '''
 
+from calculations import Calculations
 from datetime import datetime as dt
 from copy import deepcopy as dc
-from calculations import *
 from queue import Queue
 import re
 
@@ -99,7 +102,7 @@ class Header:
 
 
 class Session:
-    def __init__(self, session_id, address):
+    def __init__(self, session_id: str, address: tuple):
         # Sesja zawiera ID klienta i jego adres
         self.session_id = session_id
         self.receiver_addr = address
@@ -108,7 +111,7 @@ class Session:
         self.numbers_to_sort = []
         self.request_queue = Queue()
 
-    def request_to_response(self):
+    def request_to_response(self) -> list:
         # Jeśli są żadania, bierzemy pierwsze w kolejności i przetwarzamy je
         if not self.request_queue.empty():
             request: Header = self.request_queue.get()
@@ -173,7 +176,7 @@ class Session:
 
                         return [(msg.to_send(), self.receiver_addr) for msg in message_list]
 
-            except (ZeroDivisionError, OverflowError):
+            except:
                 self.numbers_to_sort = []
                 request.status = Status.ERROR
                 request.a = Status.ERROR

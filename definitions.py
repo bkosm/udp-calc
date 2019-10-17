@@ -54,33 +54,34 @@ class Status:
 
 
 class Header:
-    def __init__(self, o='x', s='x', i='x', t='x', a='null', b='null'):
-        self.operation = str(o)
-        self.status = str(s)
-        self.id = str(i)
-        self.timestamp = str(t)
-        self.a = str(a)
-        self.b = str(b)
+    def __init__(self, o=None, s=None, i=None, t=None, a=None, b=None):
+        self.operation = o
+        self.status = s
+        self.id = i
+        self.timestamp = t
+        self.a = a
+        self.b = b
 
     def to_string(self) -> str:
         msg = ''
         if self.operation:
-            msg += "o->"+self.operation+"#"
+            msg += "o->"+str(self.operation)+"#"
 
         if self.status:
-            msg += "s->"+self.status+"#"
+            msg += "s->"+str(self.status)+"#"
 
-        msg += "i->"+self.id+"#"
+        msg += "i->"+str(self.id)+"#"
 
         if self.a:
-            msg += "a->"+self.a+"#"
+            msg += "a->"+str(self.a)+"#"
 
         if self.b:
-            msg += "b->"+self.b+"#"
+            msg += "b->"+str(self.b)+"#"
 
-        return msg+"t->"+self.timestamp+"#"
+        return msg+"t->"+str(self.timestamp)+"#"
 
     def to_send(self) -> bytes:
+        print(self.to_string())
         return bytes(self.to_string(), encoding='utf8')
 
     @staticmethod
@@ -89,7 +90,7 @@ class Header:
         return re.sub('[- :]', '', time)
 
     @staticmethod
-    def create_reply(operation: str, status: str, session_id: str, num_a=Status.NONE, num_b=Status.NONE) -> bytes:
+    def create_reply(operation: str = None, status: str = None, session_id: str = None, num_a=None, num_b=None) -> bytes:
         return Header(operation, status, session_id, Header.create_timestamp(), num_a, num_b).to_send()
 
     # Funkcja przetwarzająca łańcuch tekstowy na strukturę nagłówka
@@ -105,9 +106,16 @@ class Header:
             for op in Operation.to_list():
                 if op == groups.group(2):
                     operation = op
+                    break
+            else:
+                operation = Status.NONE
+
             for st in Status.to_list():
                 if st == groups.group(4):
                     status = st
+                    break
+            else:
+                status = Status.NONE
 
             return Header(operation, status, groups.group(5), groups.group(10), groups.group(7), groups.group(9))
 
@@ -153,8 +161,8 @@ class Session:
 
                 elif request.operation == Operation.ADD:
                     request.a = Calculations.add(request.a, request.b)
-                    request.b = Status.NONE
-                    request.status = Status.OUTPUT
+                    request.b = None
+                    request.status = None
 
                 # Przyjmujemy naraz operacje sortowania w obie strony i obie flagi sortowania
                 elif request.operation == Operation.SORT_A or request.operation == Operation.SORT_D:
@@ -175,8 +183,8 @@ class Session:
                             self.numbers_to_sort = []
                             last_sort = True
 
-                        request.status = Status.OUTPUT
-                        request.b = Status.NONE
+                        request.status = None
+                        request.b = None
                         request.timestamp = Header.create_timestamp()
 
                         # Z posortowanych liczb tworzymy listę odpowiedzi
@@ -185,14 +193,12 @@ class Session:
                             request.a = num
                             message_list.append(dc(request))
 
-                        message_list[-1].status = Status.LAST
-
                         return [(msg.to_send(), self.receiver_addr) for msg in message_list]
 
             except:
                 self.numbers_to_sort = []
                 request.status = Status.ERROR
-                request.a = Status.ERROR
+                request.a = None
 
             # Wynik działań poza sortowaniem zwracamy tym samym sposobem
             request.timestamp = Header.create_timestamp()

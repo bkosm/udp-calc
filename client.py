@@ -41,7 +41,7 @@ class Client:
         while True:
             # Wysyłamy prośbę o utworzenie sesji
             msg = Header.create_reply(
-                Operation.CONNECTING, Status.NONE, self.SESSION_ID)
+                operation=Operation.CONNECTING, session_id=self.SESSION_ID)
 
             self.socket.sendto(msg, self.SERVER_ADDR)
             time.sleep(0.5)
@@ -76,7 +76,6 @@ class Client:
         while getattr(this_thread, 'run', True):
             if not self.messages_to_send.empty():
                 message = self.messages_to_send.get()
-                print(message)
                 self.socket.sendto(message, self.SERVER_ADDR)
 
     def recieving_func(self) -> None:
@@ -93,7 +92,7 @@ class Client:
                 # Jeśli wiadomość to potwierdzenie drukujemy
                 # informację i nie dodajemy jej do kolejki
                 if msg.status == Status.RECIEVED:
-                    print('Server recieved request (op={})'.format(msg.operation))
+                    print('Server recieved request')
 
                 else:
                     if msg.operation == Operation.SORT_A or msg.operation == Operation.SORT_D:
@@ -104,10 +103,7 @@ class Client:
 
                     # Potwierdzamy odbiór komunikatu
                     self.messages_to_send.put(
-                        self.std_client_response(msg.operation))
-
-    def std_client_response(self, operation: str) -> bytes:
-        return Header.create_reply(operation, Status.OK, self.SESSION_ID)
+                        Header.create_reply(None, Status.OK, self.SESSION_ID))
 
     def print_result(self, msg: Header) -> None:
         if self.requests:
@@ -191,16 +187,16 @@ quit session    -> quit""")
     def process_arguments(self) -> None:
         # Operacje wywoływane jako argumenty programu realizujemy od razu
         if self.arguments.add:
-            req = Header(Operation.ADD, Status.NONE, self.SESSION_ID,
-                         Header.create_timestamp(), str(self.arguments.add[0]), str(self.arguments.add[1]))
+            req = Header(o=Operation.ADD, i=self.SESSION_ID,
+                         t=Header.create_timestamp(), a=str(self.arguments.add[0]), b=str(self.arguments.add[1]))
 
             self.requests.append(req)
             self.messages_to_send.put(req.to_send())
             self.arguments.add = None
 
         if self.arguments.multiply:
-            req = Header(Operation.MULTIPLY, Status.NONE, self.SESSION_ID,
-                         Header.create_timestamp(), str(self.arguments.multiply[0]), str(self.arguments.multiply[1]))
+            req = Header(o=Operation.MULTIPLY, i=self.SESSION_ID,
+                         t=Header.create_timestamp(), a=str(self.arguments.multiply[0]), b=str(self.arguments.multiply[1]))
 
             self.requests.append(req)
             self.messages_to_send.put(req.to_send())
@@ -263,10 +259,10 @@ quit session    -> quit""")
     # Wysyłamy żądanie rozłączenia i oczekujemy na otrzymanie pozostałych wiadomości
     def disconnect(self) -> None:
         self.messages_to_send.put(Header.create_reply(
-            Operation.DISCONNECTING, Status.NONE, self.SESSION_ID))
+            operation=Operation.DISCONNECTING, session_id=self.SESSION_ID))
 
         print('Quitting session, please wait')
-        time.sleep(3)
+        time.sleep(1)
 
     def kill_threads(self) -> None:
         self.recieve.run = False

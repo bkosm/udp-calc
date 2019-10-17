@@ -116,8 +116,7 @@ class Server:
         # Jeśli komunikat jest niezgodny z protokołem nie obsługujemy go
         if not request.operation == Status.ERROR:
             if request.status == Status.OK:
-                print("Client of session {} recieved the message ({})".format(
-                    request.id, request.operation))
+                print("Client of session {} recieved the message".format(request.id))
                 return
             # Jeśli klient kończy sesję obsługujemy resztę jego żądań i usuwamy sesje
             elif request.operation == Operation.DISCONNECTING and self.session and self.session.session_id == request.id:
@@ -157,7 +156,7 @@ class Server:
                     print(
                         'Another client (id={}) tried to connect, refusing'.format(request.id))
                     self.sending_queue.put((Header.create_reply(
-                        request.operation, Status.BUSY, Status.ERROR), addr))
+                        status=Status.BUSY, session_id=Status.ERROR), addr))
                     return
 
         # Odsyłamy informację o niepoprawnym komunikacie
@@ -165,7 +164,7 @@ class Server:
             self.sending_queue.put((self.std_server_response(request), addr))
 
     def std_server_response(self, request: Header) -> bytes:
-        return Header.create_reply(request.operation, Status.RECIEVED, request.id, request.a, request.b)
+        return Header.create_reply(status=Status.RECIEVED, session_id=request.id)
 
     def parse_arguments(self) -> None:
         parser = argparse.ArgumentParser(

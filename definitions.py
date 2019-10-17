@@ -16,7 +16,7 @@ from queue import Queue
 import re
 
 
-HEADER_REGEX: str = r"b'o->(.*)#s->(.*)#i->(.*)#a->(.*)#b->(.*)#t->(.*)'"
+HEADER_REGEX: str = r"b'(o->(.)#)*(s->(.*)#)*i->(\d*|null)#(a->(\d*|null)#)*(b->(\d*|null)#)*t->(\d*)#'"
 
 L_HOST: str = '127.0.0.1'
 L_PORT: int = 65432
@@ -54,7 +54,7 @@ class Status:
 
 
 class Header:
-    def __init__(self, o='', s='', i='', t='', a='null', b='null'):
+    def __init__(self, o='x', s='x', i='x', t='x', a='null', b='null'):
         self.operation = str(o)
         self.status = str(s)
         self.id = str(i)
@@ -63,8 +63,22 @@ class Header:
         self.b = str(b)
 
     def to_string(self) -> str:
-        return "o->"+self.operation+"#s->"+self.status+"#i->" + \
-            self.id+"#a->"+self.a+"#b->"+self.b+"#t->"+self.timestamp+"#"
+        msg = ''
+        if self.operation:
+            msg += "o->"+self.operation+"#"
+
+        if self.status:
+            msg += "s->"+self.status+"#"
+
+        msg += "i->"+self.id+"#"
+
+        if self.a:
+            msg += "a->"+self.a+"#"
+
+        if self.b:
+            msg += "b->"+self.b+"#"
+
+        return msg+"t->"+self.timestamp+"#"
 
     def to_send(self) -> bytes:
         return bytes(self.to_string(), encoding='utf8')
@@ -89,16 +103,15 @@ class Header:
             status = ''
 
             for op in Operation.to_list():
-                if op == groups.group(1):
+                if op == groups.group(2):
                     operation = op
             for st in Status.to_list():
-                if st == groups.group(2):
+                if st == groups.group(4):
                     status = st
 
-            return Header(operation, status, groups.group(3), groups.group(6), groups.group(4), groups.group(5))
+            return Header(operation, status, groups.group(5), groups.group(10), groups.group(7), groups.group(9))
 
-        else:
-            return Header(Status.ERROR, Status.ERROR, Status.ERROR, Status.ERROR)
+        return Header(Status.ERROR, Status.ERROR, Status.ERROR, Status.ERROR)
 
 
 class Session:

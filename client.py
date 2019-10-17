@@ -4,6 +4,7 @@ import threading as thrdg
 import socket as skt
 import argparse
 import time
+import re
 
 
 class Client:
@@ -12,7 +13,7 @@ class Client:
         self.socket = skt.socket(skt.AF_INET, skt.SOCK_DGRAM)
         self.socket.setblocking(0)
 
-        self.parse_arguments()
+        self.use_menu = self.parse_arguments()
 
         self.SERVER_ADDR = (self.arguments.ip_address, self.arguments.port)
         self.SESSION_ID = Status.NONE
@@ -26,7 +27,10 @@ class Client:
         if self.init_connection():
             self.init_threads()
 
-            self.process_arguments()
+            if self.use_menu:
+                self.menu_loop()
+            else:
+                self.process_arguments()
 
             self.disconnect()
             self.kill_threads()
@@ -36,8 +40,10 @@ class Client:
         print('Waiting for server connection')
         while True:
             # Wysyłamy prośbę o utworzenie sesji
-            self.socket.sendto(Header.create_reply(
-                Operation.CONNECTING, Status.NONE, self.SESSION_ID), self.SERVER_ADDR)
+            msg = Header.create_reply(
+                Operation.CONNECTING, Status.NONE, self.SESSION_ID)
+
+            self.socket.sendto(msg, self.SERVER_ADDR)
             time.sleep(0.5)
 
             # Czekamy na potwierdzenie serwera lub informację o zajętości
@@ -70,6 +76,7 @@ class Client:
         while getattr(this_thread, 'run', True):
             if not self.messages_to_send.empty():
                 message = self.messages_to_send.get()
+                print(message)
                 self.socket.sendto(message, self.SERVER_ADDR)
 
     def recieving_func(self) -> None:
@@ -129,7 +136,58 @@ class Client:
                         print("{} % {} = {}".format(req.a, req.b, msg.a))
                         self.requests.remove(req)
 
-    # Menu operacji
+    # Menu operacji w pętli programu
+    def menu_loop(self) -> None:
+        print("""
+Enter the operations that you wish to perform in natural form (ex. 2 + 2)
+Possible operations are:
+addition        -> x + y
+multiplication  -> x * y
+modulo          -> x % y
+random integer  -> x ; y
+sort ascending  -> sortA
+sort descending -> sortD
+quit session    -> quit""")
+
+        operation = ''
+        exp = r"(\d*)\s*(\+|%|\*|;)\s*(\d*)"
+
+        while True:
+            operation = input()
+
+            match = re.match(exp, operation)
+
+            if match:
+                if match.group(2) == '+':
+                    self.arguments.add = [
+                        int(match.group(1)), int(match.group(3))]
+                elif match.group(2) == '*':
+                    self.arguments.multiply = [
+                        int(match.group(1)), int(match.group(3))]
+                elif match.group(2) == '%':
+                    self.arguments.modulo = [
+                        int(match.group(1)), int(match.group(3))]
+                elif match.group(2) == ';':
+                    self.arguments.random = [
+                        int(match.group(1)), int(match.group(3))]
+
+            elif operation == 'sortA':
+                self.collect_sortA_request()
+
+            elif operation == 'sortD':
+                self.collect_sortD_request()
+
+            elif operation == 'quit':
+                break
+
+            else:
+                print('Invalid expression')
+                continue
+
+            self.process_arguments()
+
+    # Menu operacji z linii komend
+
     def process_arguments(self) -> None:
         # Operacje wywoływane jako argumenty programu realizujemy od razu
         if self.arguments.add:
@@ -138,6 +196,7 @@ class Client:
 
             self.requests.append(req)
             self.messages_to_send.put(req.to_send())
+            self.arguments.add = None
 
         if self.arguments.multiply:
             req = Header(Operation.MULTIPLY, Status.NONE, self.SESSION_ID,
@@ -145,6 +204,7 @@ class Client:
 
             self.requests.append(req)
             self.messages_to_send.put(req.to_send())
+            self.arguments.multiply = None
 
         if self.arguments.random:
             req = Header(Operation.RANDOM, Status.NONE, self.SESSION_ID,
@@ -152,6 +212,7 @@ class Client:
 
             self.requests.append(req)
             self.messages_to_send.put(req.to_send())
+            self.arguments.random = None
 
         if self.arguments.modulo:
             req = Header(Operation.MODULO, Status.NONE, self.SESSION_ID,
@@ -159,6 +220,7 @@ class Client:
 
             self.requests.append(req)
             self.messages_to_send.put(req.to_send())
+            self.arguments.modulo = None
 
         # Sortowanie przetwarzamy w pętli wewnątrz programu
         if self.arguments.sortA:
@@ -213,7 +275,7 @@ class Client:
         self.recieve.join()
         self.send.join()
 
-    def parse_arguments(self) -> None:
+    def parse_arguments(self) -> bool:
         parser = argparse.ArgumentParser(
             description="Connect to a remote host and perform calculations.")
 
@@ -238,6 +300,11 @@ class Client:
                            help="Sort given numbers in descending order", action="store_true")
 
         self.arguments = parser.parse_args()
+
+        if not self.arguments.add and not self.arguments.multiply and not self.arguments.random and not self.arguments.modulo and not self.arguments.sortA and not self.arguments.sortD:
+            return True
+        else:
+            return False
 
 
 if __name__ == '__main__':

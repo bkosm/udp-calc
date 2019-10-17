@@ -103,7 +103,7 @@ class Client:
 
                     # Potwierdzamy odbiór komunikatu
                     self.messages_to_send.put(
-                        Header.create_reply(None, Status.OK, self.SESSION_ID))
+                        Header.create_reply(msg.operation, Status.OK, self.SESSION_ID))
 
     def print_result(self, msg: Header) -> None:
         if self.requests:
@@ -203,16 +203,16 @@ quit session    -> quit""")
             self.arguments.multiply = None
 
         if self.arguments.random:
-            req = Header(Operation.RANDOM, Status.NONE, self.SESSION_ID,
-                         Header.create_timestamp(), str(self.arguments.random[0]), str(self.arguments.random[1]))
+            req = Header(o=Operation.RANDOM, i=self.SESSION_ID,
+                         t=Header.create_timestamp(), a=str(self.arguments.random[0]), b=str(self.arguments.random[1]))
 
             self.requests.append(req)
             self.messages_to_send.put(req.to_send())
             self.arguments.random = None
 
         if self.arguments.modulo:
-            req = Header(Operation.MODULO, Status.NONE, self.SESSION_ID,
-                         Header.create_timestamp(), str(self.arguments.modulo[0]), str(self.arguments.modulo[1]))
+            req = Header(o=Operation.MODULO, i=self.SESSION_ID,
+                         t=Header.create_timestamp(), a=str(self.arguments.modulo[0]), b=str(self.arguments.modulo[1]))
 
             self.requests.append(req)
             self.messages_to_send.put(req.to_send())
@@ -230,6 +230,7 @@ quit session    -> quit""")
             num = input()
 
             if not num:
+                print('not num')
                 continue
 
             if num[-1] == '-':

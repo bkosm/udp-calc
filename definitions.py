@@ -145,24 +145,24 @@ class Session:
 
                 elif request.operation == Operation.MODULO:
                     request.a = Calculations.modulo(request.a, request.b)
-                    request.b = Status.NONE
-                    request.status = Status.OUTPUT
+                    request.status = None
+                    request.b = None
 
                 elif request.operation == Operation.MULTIPLY:
                     request.a = Calculations.multiply(request.a, request.b)
-                    request.b = Status.NONE
-                    request.status = Status.OUTPUT
+                    request.status = None
+                    request.b = None
 
                 elif request.operation == Operation.RANDOM:
                     request.a = Calculations.randomint_between(
                         request.a, request.b)
-                    request.b = Status.NONE
-                    request.status = Status.OUTPUT
+                    request.status = None
+                    request.b = None
 
                 elif request.operation == Operation.ADD:
                     request.a = Calculations.add(request.a, request.b)
-                    request.b = None
                     request.status = None
+                    request.b = None
 
                 # Przyjmujemy naraz operacje sortowania w obie strony i obie flagi sortowania
                 elif request.operation == Operation.SORT_A or request.operation == Operation.SORT_D:
@@ -198,6 +198,7 @@ class Session:
             except:
                 self.numbers_to_sort = []
                 request.status = Status.ERROR
+                request.operation = None
                 request.a = None
 
             # Wynik działań poza sortowaniem zwracamy tym samym sposobem

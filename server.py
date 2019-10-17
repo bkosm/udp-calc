@@ -116,7 +116,7 @@ class Server:
         # Jeśli komunikat jest niezgodny z protokołem nie obsługujemy go
         if not request.operation == Status.ERROR:
             if request.status == Status.OK:
-                print("Client of session {} recieved the message".format(request.id))
+                print("Client of session {} recieved the message (op={})".format(request.id, request.operation))
                 return
             # Jeśli klient kończy sesję obsługujemy resztę jego żądań i usuwamy sesje
             elif request.operation == Operation.DISCONNECTING and self.session and self.session.session_id == request.id:
@@ -164,7 +164,7 @@ class Server:
             self.sending_queue.put((self.std_server_response(request), addr))
 
     def std_server_response(self, request: Header) -> bytes:
-        return Header.create_reply(status=Status.RECIEVED, session_id=request.id)
+        return Header.create_reply(operation=request.operation, status=Status.RECIEVED, session_id=request.id)
 
     def parse_arguments(self) -> None:
         parser = argparse.ArgumentParser(

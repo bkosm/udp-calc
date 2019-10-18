@@ -107,30 +107,23 @@ class Client:
 
     def print_result(self, msg: Header) -> None:
         if self.requests:
-            if msg.operation == Operation.ADD:
-                for req in self.requests:
-                    if msg.operation == req.operation:
-                        print("{} + {} = {}".format(req.a, req.b, msg.a))
-                        self.requests.remove(req)
+            for req in self.requests:
+                if msg.operation == req.operation and msg.operation == Operation.ADD:
+                    print("{} + {} = {}".format(req.a, req.b, msg.a))
+                    self.requests.remove(req)
 
-            if msg.operation == Operation.MULTIPLY:
-                for req in self.requests:
-                    if msg.operation == req.operation:
-                        print("{} * {} = {}".format(req.a, req.b, msg.a))
-                        self.requests.remove(req)
+                if msg.operation == req.operation and msg.operation == Operation.MULTIPLY:
+                    print("{} * {} = {}".format(req.a, req.b, msg.a))
+                    self.requests.remove(req)
 
-            if msg.operation == Operation.RANDOM:
-                for req in self.requests:
-                    if msg.operation == req.operation:
-                        print("random between <{}; {}> = {}".format(
-                            req.a, req.b, msg.a))
-                        self.requests.remove(req)
+                if msg.operation == req.operation and msg.operation == Operation.RANDOM:
+                    print("random between <{}; {}> = {}".format(
+                        req.a, req.b, msg.a))
+                    self.requests.remove(req)
 
-            if msg.operation == Operation.MODULO:
-                for req in self.requests:
-                    if msg.operation == req.operation:
-                        print("{} % {} = {}".format(req.a, req.b, msg.a))
-                        self.requests.remove(req)
+                if msg.operation == req.operation and msg.operation == Operation.MODULO:
+                    print("{} % {} = {}".format(req.a, req.b, msg.a))
+                    self.requests.remove(req)
 
     # Menu operacji w pętli programu
     def menu_loop(self) -> None:
@@ -146,26 +139,31 @@ sort descending -> sortD
 quit session    -> quit""")
 
         operation = ''
-        exp = r"(\d*)\s*(\+|%|\*|;)\s*(\d*)"
+        exp = r"(-*\d*)\s*(\+|%|\*|;)\s*(-*\d*)"
 
         while True:
             operation = input()
 
-            match = re.match(exp, operation)
+            match = re.search(exp, operation)
 
             if match:
-                if match.group(2) == '+':
-                    self.arguments.add = [
-                        int(match.group(1)), int(match.group(3))]
-                elif match.group(2) == '*':
-                    self.arguments.multiply = [
-                        int(match.group(1)), int(match.group(3))]
-                elif match.group(2) == '%':
-                    self.arguments.modulo = [
-                        int(match.group(1)), int(match.group(3))]
-                elif match.group(2) == ';':
-                    self.arguments.random = [
-                        int(match.group(1)), int(match.group(3))]
+                try:
+                    if match.group(2) == '+':
+                        self.arguments.add = [
+                            int(match.group(1)), int(match.group(3))]
+                    elif match.group(2) == '*':
+                        self.arguments.multiply = [
+                            int(match.group(1)), int(match.group(3))]
+                    elif match.group(2) == '%':
+                        self.arguments.modulo = [
+                            int(match.group(1)), int(match.group(3))]
+                    elif match.group(2) == ';':
+                        self.arguments.random = [
+                            int(match.group(1)), int(match.group(3))]
+                except:
+                    print('Wrong input')
+                    continue
+
 
             elif operation == 'sortA':
                 self.collect_sortA_request()
@@ -230,16 +228,22 @@ quit session    -> quit""")
             num = input()
 
             if not num:
-                print('not num')
+                print('Submitted empty field, try again')
                 continue
 
-            if num[-1] == '-':
-                self.messages_to_send.put(Header.create_reply(
-                    Operation.SORT_A, Status.LAST, self.SESSION_ID, num[:-1]))
-                return
-            else:
-                self.messages_to_send.put(Header.create_reply(
-                    Operation.SORT_A, Status.SENDING, self.SESSION_ID, num))
+            try:
+                if num[-1] == '-':
+                    int(num[:-1])
+                    self.messages_to_send.put(Header.create_reply(
+                        Operation.SORT_A, Status.LAST, self.SESSION_ID, num[:-1]))
+                    return
+                else:
+                    int(num)
+                    self.messages_to_send.put(Header.create_reply(
+                        Operation.SORT_A, Status.SENDING, self.SESSION_ID, num))
+            except:
+                print('Not a number, try again')
+                continue
 
     def collect_sortD_request(self) -> None:
         print("Enter next number to sort, if it's the last one, add '-' after the number (ex. '3-'):")
@@ -247,15 +251,22 @@ quit session    -> quit""")
             num = input()
 
             if not num:
+                print('Submitted empty field, try again')
                 continue
-
-            if num[-1] == '-':
-                self.messages_to_send.put(Header.create_reply(
-                    Operation.SORT_D, Status.LAST, self.SESSION_ID, num[:-1]))
-                return
-            else:
-                self.messages_to_send.put(Header.create_reply(
-                    Operation.SORT_D, Status.SENDING, self.SESSION_ID, num))
+            
+            try:
+                if num[-1] == '-':
+                    int(num[:-1])
+                    self.messages_to_send.put(Header.create_reply(
+                        Operation.SORT_D, Status.LAST, self.SESSION_ID, num[:-1]))
+                    return
+                else:
+                    int(num)
+                    self.messages_to_send.put(Header.create_reply(
+                        Operation.SORT_D, Status.SENDING, self.SESSION_ID, num))
+            except:
+                print('Not a number, try again')
+                continue
 
     # Wysyłamy żądanie rozłączenia i oczekujemy na otrzymanie pozostałych wiadomości
     def disconnect(self) -> None:

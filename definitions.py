@@ -16,8 +16,6 @@ from queue import Queue
 import re
 
 
-HEADER_REGEX: str = r"b'(o->(.)#)*(s->(.*)#)*i->(\d*|null)#(a->(\d*|null)#)*(b->(\d*|null)#)*t->(\d*)#'"
-
 L_HOST: str = '127.0.0.1'
 L_PORT: int = 65432
 
@@ -38,19 +36,23 @@ class Operation:
 
 
 class Status:
-    SENDING = 'send'
-    CONNECTING = 'conn'
-    RECIEVED = 'recvd'
-    OUTPUT = 'output'
-    LAST = 'last'
-    ERROR = 'err'
-    BUSY = 'busy'
-    OK = 'ok'
-    NONE = 'null'
+    SENDING = 's'
+    CONNECTING = 'c'
+    RECIEVED = 'r'
+    OUTPUT = 'o'
+    LAST = 'l'
+    ERROR = 'E'
+    BUSY = 'b'
+    OK = 'k'
+    NONE = 'n'
 
     @staticmethod
     def to_list() -> list:
         return [Status.SENDING, Status.CONNECTING, Status.RECIEVED, Status.OUTPUT, Status.LAST, Status.ERROR, Status.BUSY, Status.OK, Status.NONE]
+
+
+HEADER_REGEX: str = r"b'(o->(.)#)*(s->(.)#)*i->(\d*|"+Status.NONE+"|" + \
+    Status.ERROR+")#(a->(-*\d*|"+Status.ERROR+")#)*(b->(-*\d*)#)*t->(\d*)#'"
 
 
 class Header:
@@ -81,7 +83,6 @@ class Header:
         return msg+"t->"+str(self.timestamp)+"#"
 
     def to_send(self) -> bytes:
-        print(self.to_string())
         return bytes(self.to_string(), encoding='utf8')
 
     @staticmethod
@@ -119,7 +120,7 @@ class Header:
 
             return Header(operation, status, groups.group(5), groups.group(10), groups.group(7), groups.group(9))
 
-        return Header(Status.ERROR, Status.ERROR, Status.ERROR, Status.ERROR)
+        return Header(o=Status.ERROR, i=Status.ERROR)
 
 
 class Session:
@@ -145,29 +146,28 @@ class Session:
 
                 elif request.operation == Operation.MODULO:
                     request.a = Calculations.modulo(request.a, request.b)
-                    request.status = None
+                    request.status = Status.OUTPUT
                     request.b = None
 
                 elif request.operation == Operation.MULTIPLY:
                     request.a = Calculations.multiply(request.a, request.b)
-                    request.status = None
+                    request.status = Status.OUTPUT
                     request.b = None
 
                 elif request.operation == Operation.RANDOM:
                     request.a = Calculations.randomint_between(
                         request.a, request.b)
-                    request.status = None
+                    request.status = Status.OUTPUT
                     request.b = None
 
                 elif request.operation == Operation.ADD:
                     request.a = Calculations.add(request.a, request.b)
-                    request.status = None
+                    request.status = Status.OUTPUT
                     request.b = None
 
                 # Przyjmujemy naraz operacje sortowania w obie strony i obie flagi sortowania
                 elif request.operation == Operation.SORT_A or request.operation == Operation.SORT_D:
                     if request.status == Status.SENDING or request.status == Status.LAST:
-
                         self.numbers_to_sort.append(request.a)
                         last_sort = False
 
@@ -183,7 +183,7 @@ class Session:
                             self.numbers_to_sort = []
                             last_sort = True
 
-                        request.status = None
+                        request.status = Status.SENDING
                         request.b = None
                         request.timestamp = Header.create_timestamp()
 
@@ -193,13 +193,16 @@ class Session:
                             request.a = num
                             message_list.append(dc(request))
 
+                        if last_sort:
+                            message_list[-1].status = Status.LAST
+
                         return [(msg.to_send(), self.receiver_addr) for msg in message_list]
 
             except:
                 self.numbers_to_sort = []
                 request.status = Status.ERROR
-                request.operation = None
-                request.a = None
+                request.a = Status.ERROR
+                request.b = None
 
             # Wynik działań poza sortowaniem zwracamy tym samym sposobem
             request.timestamp = Header.create_timestamp()

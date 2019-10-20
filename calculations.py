@@ -8,7 +8,7 @@ MIN_NR: int = -MAX_NR - 1
 class Calculations:
     @staticmethod
     def randomint_between(a: str, b: str) -> str:
-        result = rd(int(a) + 1, int(b))
+        result = rd(int(a), int(b))
 
         if result < MIN_NR or result > MAX_NR:
             raise OverflowError

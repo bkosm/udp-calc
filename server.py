@@ -25,10 +25,11 @@ class Server:
         self.init_threads()
 
         # Pętla wątku głównego
+        cond = ''
+
         while True:
-            terminate = input(
-                "Type in 'kill' anytime to terminate server process\n")
-            if terminate == 'kill':
+            cond = input("Type in 'kill' anytime to kill server application\n")
+            if cond == 'kill':
                 break
 
         self.stop()
@@ -37,13 +38,17 @@ class Server:
         self.kill_threads()
         self.socket.close()
 
-        print("Served {} client(s) with a total of {} operations".format(
+        print("\nServed {} client(s) with a total of {} operations".format(
             self.counter[1], self.counter[0]))
 
     def init_threads(self) -> None:
         self.recieve = thrdg.Thread(target=self.recieving_func)
         self.operate = thrdg.Thread(target=self.operation_func)
         self.send = thrdg.Thread(target=self.sending_func)
+
+        self.recieve.daemon = True
+        self.operate.daemon = True
+        self.send.daemon = True
 
         self.recieve.start()
         self.operate.start()
@@ -116,7 +121,8 @@ class Server:
         # Jeśli komunikat jest niezgodny z protokołem nie obsługujemy go
         if not request.operation == Status.ERROR:
             if request.status == Status.OK:
-                print("Client of session {} recieved the message (op={})".format(request.id, request.operation))
+                print("Client of session {} recieved the message (op={})".format(
+                    request.id, request.operation))
                 return
             # Jeśli klient kończy sesję obsługujemy resztę jego żądań i usuwamy sesje
             elif request.operation == Operation.DISCONNECTING and self.session and self.session.session_id == request.id:

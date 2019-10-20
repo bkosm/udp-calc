@@ -67,6 +67,9 @@ class Client:
         self.send = thrdg.Thread(target=self.sending_func)
         self.recieve = thrdg.Thread(target=self.recieving_func)
 
+        self.send.daemon = True
+        self.recieve.daemon = True
+
         self.send.start()
         self.recieve.start()
 
@@ -127,7 +130,11 @@ class Client:
 
     # Menu operacji w pętli programu
     def menu_loop(self) -> None:
-        print("""
+        operation = ''
+        exp = r"(-*\d*)\s*(\+|%|\*|;)\s*(-*\d*)"
+
+        while True:
+            print("""
 Enter the operations that you wish to perform in natural form (ex. 2 + 2)
 Possible operations are:
 addition        -> x + y
@@ -136,14 +143,9 @@ modulo          -> x % y
 random integer  -> x ; y
 sort ascending  -> sortA
 sort descending -> sortD
-quit session    -> quit""")
-
-        operation = ''
-        exp = r"(-*\d*)\s*(\+|%|\*|;)\s*(-*\d*)"
-
-        while True:
+quit session    -> quit
+""")
             operation = input()
-
             match = re.search(exp, operation)
 
             if match:
@@ -161,15 +163,16 @@ quit session    -> quit""")
                         self.arguments.random = [
                             int(match.group(1)), int(match.group(3))]
                 except:
-                    print('Wrong input')
+                    print('Invalid input, try again')
                     continue
-
 
             elif operation == 'sortA':
                 self.collect_sortA_request()
+                print("Ending sorting session, results are below:")
 
             elif operation == 'sortD':
                 self.collect_sortD_request()
+                print("Ending sorting session, results are below:")
 
             elif operation == 'quit':
                 break
@@ -179,6 +182,7 @@ quit session    -> quit""")
                 continue
 
             self.process_arguments()
+            time.sleep(1)
 
     # Menu operacji z linii komend
 
@@ -253,7 +257,7 @@ quit session    -> quit""")
             if not num:
                 print('Submitted empty field, try again')
                 continue
-            
+
             try:
                 if num[-1] == '-':
                     int(num[:-1])

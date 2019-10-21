@@ -41,7 +41,7 @@ class Client:
         while True:
             # Wysyłamy prośbę o utworzenie sesji
             msg = Header.create_reply(
-                operation=Operation.CONNECTING, session_id=self.SESSION_ID)
+                operation=Operation.CONNECTING,status=Status.NONE, session_id=self.SESSION_ID)
 
             self.socket.sendto(msg, self.SERVER_ADDR)
             time.sleep(0.5)
@@ -189,7 +189,7 @@ quit session    -> quit
     def process_arguments(self) -> None:
         # Operacje wywoływane jako argumenty programu realizujemy od razu
         if self.arguments.add:
-            req = Header(o=Operation.ADD, i=self.SESSION_ID,
+            req = Header(o=Operation.ADD, s=Status.NONE,i=self.SESSION_ID,
                          t=Header.create_timestamp(), a=str(self.arguments.add[0]), b=str(self.arguments.add[1]))
 
             self.requests.append(req)
@@ -197,7 +197,7 @@ quit session    -> quit
             self.arguments.add = None
 
         if self.arguments.multiply:
-            req = Header(o=Operation.MULTIPLY, i=self.SESSION_ID,
+            req = Header(o=Operation.MULTIPLY, s=Status.NONE, i=self.SESSION_ID,
                          t=Header.create_timestamp(), a=str(self.arguments.multiply[0]), b=str(self.arguments.multiply[1]))
 
             self.requests.append(req)
@@ -205,7 +205,7 @@ quit session    -> quit
             self.arguments.multiply = None
 
         if self.arguments.random:
-            req = Header(o=Operation.RANDOM, i=self.SESSION_ID,
+            req = Header(o=Operation.RANDOM, s=Status.NONE, i=self.SESSION_ID,
                          t=Header.create_timestamp(), a=str(self.arguments.random[0]), b=str(self.arguments.random[1]))
 
             self.requests.append(req)
@@ -213,7 +213,7 @@ quit session    -> quit
             self.arguments.random = None
 
         if self.arguments.modulo:
-            req = Header(o=Operation.MODULO, i=self.SESSION_ID,
+            req = Header(o=Operation.MODULO, s=Status.NONE, i=self.SESSION_ID,
                          t=Header.create_timestamp(), a=str(self.arguments.modulo[0]), b=str(self.arguments.modulo[1]))
 
             self.requests.append(req)
@@ -275,7 +275,7 @@ quit session    -> quit
     # Wysyłamy żądanie rozłączenia i oczekujemy na otrzymanie pozostałych wiadomości
     def disconnect(self) -> None:
         self.messages_to_send.put(Header.create_reply(
-            operation=Operation.DISCONNECTING, session_id=self.SESSION_ID))
+            operation=Operation.DISCONNECTING, status=Status.NONE, session_id=self.SESSION_ID))
 
         print('Quitting session, please wait')
         time.sleep(1)
